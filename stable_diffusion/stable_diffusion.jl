@@ -3,12 +3,15 @@ using Oceananigans.TurbulenceClosures: with_tracers
 using Oceananigans.Models.HydrostaticFreeSurfaceModels: tracernames
 using Enzyme
 
+Enzyme.API.runtimeActivity!(true)
+Enzyme.API.printall!(true)
 Enzyme.EnzymeRules.inactive_type(::Type{<:Oceananigans.Grids.AbstractGrid}) = true
+Enzyme.EnzymeRules.inactive_noinl(::typeof(Core._compute_sparams), args...) = nothing
 
 const maximum_diffusivity = 100
 
 grid = RectilinearGrid(size=128, z=(-0.5, 0.5), topology=(Flat, Flat, Bounded))
-diffusion = VerticalScalarDiffusivity(κ=1)
+diffusion = VerticalScalarDiffusivity(κ=1.0)
 
 model = HydrostaticFreeSurfaceModel(; grid,
                                     tracers = :c,
@@ -22,21 +25,24 @@ model = HydrostaticFreeSurfaceModel(; grid,
 Change diffusivity of model to `diffusivity`.
 """
 function set_diffusivity!(model, diffusivity)
-    FT = eltype(model.grid)
-    tracers = model.tracers
     closure = VerticalScalarDiffusivity(; κ=diffusivity)
-    closure = with_tracers(tracernames(tracers), closure)
+    names = tuple(:c) # tracernames(model.tracers)
+    closure = with_tracers(names, closure)
     model.closure = closure
+    return nothing
+end
+
+function set_initial_condition!(model, amplitude)
+    # Set initial condition
+    width = 0.1
+    cᵢ(x, y, z) = amplitude * exp(-z^2 / (2width^2))
+    set!(model, c=cᵢ)
     return nothing
 end
 
 function stable_diffusion!(model, amplitude, diffusivity)
     set_diffusivity!(model, diffusivity)
-
-    # Set initial condition
-    width = 0.1
-    cᵢ(x, y, z) = amplitude * exp(-z^2 / (2width^2))
-    set!(model, c=cᵢ)
+    set_initial_condition!(model, amplitude)
 
     # Do time-stepping
     Nx, Ny, Nz = size(model.grid)
@@ -55,12 +61,12 @@ function stable_diffusion!(model, amplitude, diffusivity)
     c = model.tracers.c
 
     # Hard way
-    c² = c^2
-    sum_c² = sum(c²)
+    # c² = c^2
+    # sum_c² = sum(c²)
 
     # Another way to compute it
-    # c² = Array(interior(c).^2)
-    # sum_c² = sum(c²)
+    c² = Array(interior(c).^2)
+    sum_c² = sum(c²)
 
     return sum_c²::Float64
 end
@@ -72,9 +78,11 @@ c²₂ = stable_diffusion!(model, 1, κ₂)
 dc²_dκ = (c²₂ - c²₁) / (κ₂ - κ₁)
 
 # Now for real
-amplitude = 1
+amplitude = 1.0
+κ = 1.0
 dmodel = deepcopy(model)
 set_diffusivity!(dmodel, 0)
 
-autodiff(Reverse, stable_diffusion!, Duplicated(model, dmodel), Const(amplitude), Active(diffusivity))
+#autodiff(Reverse, set_diffusivity!, Duplicated(model, dmodel), Active(κ))
+autodiff(Reverse, stable_diffusion!, Duplicated(model, dmodel), Const(amplitude), Active(κ))
 
