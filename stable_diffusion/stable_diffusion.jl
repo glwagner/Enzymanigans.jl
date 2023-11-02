@@ -4,7 +4,7 @@ using Oceananigans.Models.HydrostaticFreeSurfaceModels: tracernames
 using Enzyme
 
 Enzyme.API.runtimeActivity!(true)
-Enzyme.API.printall!(true)
+#Enzyme.API.printall!(true)
 Enzyme.EnzymeRules.inactive_type(::Type{<:Oceananigans.Grids.AbstractGrid}) = true
 Enzyme.EnzymeRules.inactive_noinl(::typeof(Core._compute_sparams), args...) = nothing
 
@@ -35,7 +35,7 @@ end
 function set_initial_condition!(model, amplitude)
     # Set initial condition
     width = 0.1
-    cᵢ(x, y, z) = amplitude * exp(-z^2 / (2width^2))
+    cᵢ(z) = amplitude * exp(-z^2 / (2width^2))
     set!(model, c=cᵢ)
     return nothing
 end
@@ -83,6 +83,7 @@ amplitude = 1.0
 dmodel = deepcopy(model)
 set_diffusivity!(dmodel, 0)
 
+autodiff(Reverse, set_initial_condition!, Duplicated(model, dmodel), Active(amplitude))
 #autodiff(Reverse, set_diffusivity!, Duplicated(model, dmodel), Active(κ))
-autodiff(Reverse, stable_diffusion!, Duplicated(model, dmodel), Const(amplitude), Active(κ))
+#autodiff(Reverse, stable_diffusion!, Duplicated(model, dmodel), Const(amplitude), Active(κ))
 
