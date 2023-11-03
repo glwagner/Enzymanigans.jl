@@ -43,7 +43,7 @@ end
 function stable_diffusion!(model, amplitude, diffusivity)
     set_diffusivity!(model, diffusivity)
     set_initial_condition!(model, amplitude)
-
+    
     # Do time-stepping
     Nx, Ny, Nz = size(model.grid)
     κ_max = maximum_diffusivity
@@ -71,6 +71,8 @@ function stable_diffusion!(model, amplitude, diffusivity)
     return sum_c²::Float64
 end
 
+@show(model)
+
 # Compute derivative by hand
 κ₁, κ₂ = 0.9, 1.1
 c²₁ = stable_diffusion!(model, 1, κ₁)
@@ -82,6 +84,10 @@ amplitude = 1.0
 κ = 1.0
 dmodel = deepcopy(model)
 set_diffusivity!(dmodel, 0)
+
+@show(model)
+@show(c²₁)
+@show(c²₂)
 
 autodiff(Reverse, set_initial_condition!, Duplicated(model, dmodel), Active(amplitude))
 #autodiff(Reverse, set_diffusivity!, Duplicated(model, dmodel), Active(κ))
