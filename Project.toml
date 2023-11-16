@@ -1,5 +1,6 @@
 [deps]
 Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
+Enzyme_jll = "7cc45869-7501-5eee-bdea-0790c847d4ef"
 KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
 OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"

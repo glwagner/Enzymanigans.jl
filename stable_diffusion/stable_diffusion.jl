@@ -13,10 +13,11 @@ using Oceananigans.BoundaryConditions: extract_bottom_bc
 
 #using OffsetArrays: OffsetArray
 
-include("../../FlattenedTuples/FlattenedTuples.jl")
-import .FlattenedTuples: reduced_flattened_unique_values
+# include("../../FlattenedTuples/FlattenedTuples.jl")
+# import .FlattenedTuples: reduced_flattened_unique_values
 
-Enzyme.API.strictAliasing!(false)
+# Enzyme.API.strictAliasing!(false)
+
 #Enzyme.API.printunnecessary!(true)
 Enzyme.API.runtimeActivity!(true)
 #Enzyme.API.printall!(true)
@@ -48,26 +49,12 @@ function set_diffusivity!(model, diffusivity)
 end
 
 function reduced_fill_halo_regions!(maybe_nested_tuple::Union{NamedTuple, Tuple})
+    tupled = tuplify(maybe_nested_tuple)
+    ordinary_fields = flatten_tuple(tupled)
 
-    #@show ordinary_fields
-    #@show typeof(ordinary_fields)
-    #ordinary_fields = maybe_nested_tuple
-    # THIS function call (flattened_unique_values) leads to the seg fault, if we just set ordinary_fields = maybe_nested_tuple
-    # then no errors
-    ordinary_fields = local_flattened_unique_values(maybe_nested_tuple)
-
-    #@show ordinary_fields
-    #@show typeof(ordinary_fields)
-    
-    fill_halos! = [fill_west_and_east_halo!, fill_west_and_east_halo!]
     bcs  = reduced_permute_boundary_conditions(map(boundary_conditions, ordinary_fields))
-    number_of_tasks   = length(fill_halos!)
 
-    # Fill halo in the three permuted directions (1, 2, and 3), making sure dependencies are fulfilled
-    for task = 1:number_of_tasks
-        fill_halos![task](map(data, ordinary_fields), bcs[task])
-    end
-    
+    Base.inferencebarrier(fill_west_and_east_halo!)(map(data, ordinary_fields), bcs[1])    
     return nothing
 end
 
@@ -76,11 +63,7 @@ end
     #Converts a from a named tuple into a tuple:
     tupled = tuplify(a)
     flattened = flatten_tuple(tupled)
-    #@show tupled
-
-    # Alternative implementation of `unique` for tuples that uses === comparison, rather than ==
-    seen = []
-    return Tuple(last(push!(seen, f)) for f in flattened if !any(f === s for s in seen))
+    return flattened #  Tuple(last(push!(seen, f)) for f in flattened if !any(f === s for s in seen))
 end
 
 # Utility for extracting values from nested NamedTuples
@@ -106,7 +89,7 @@ function reduced_permute_boundary_conditions(boundary_conditions)
     @show extract_bottom_bc(boundary_conditions)
     @show typeof(extract_bottom_bc(boundary_conditions))
     =#
-    sides = [:west_and_east, :bottom_and_top]
+    sides = (:west_and_east, :bottom_and_top)
     boundary_conditions = Tuple(extract_bc(boundary_conditions, Val(side)) for side in sides)
 
     return boundary_conditions
@@ -135,6 +118,6 @@ end
 dmodel = deepcopy(model)
 set_diffusivity!(dmodel, 0)
 
-#reduced_fill_halo_regions!(Oceananigans.prognostic_fields(model))
+reduced_fill_halo_regions!(Oceananigans.prognostic_fields(model))
 
 autodiff(Reverse, reduced_fill_halo_regions!, Duplicated(Oceananigans.prognostic_fields(model), Oceananigans.prognostic_fields(dmodel)))
