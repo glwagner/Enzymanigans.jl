@@ -76,19 +76,19 @@ function stable_diffusion!(model, amplitude, diffusivity)
     # sum_c² = sum(c²)
 
     # Another way to compute it
-    c² = Array(interior(c).^2)
-    sum_c² = sum(c²)
+    sum_c² = 0.0
+    for k = 1:Nz
+        sum_c² += c[1, 1, k]^2
+    end
 
     return sum_c²::Float64
 end
-
-@show(model)
 
 # Compute derivative by hand
 κ₁, κ₂ = 0.9, 1.1
 c²₁ = stable_diffusion!(model, 1, κ₁)
 c²₂ = stable_diffusion!(model, 1, κ₂)
-dc²_dκ = (c²₂ - c²₁) / (κ₂ - κ₁)
+dc²_dκ_fd = (c²₂ - c²₁) / (κ₂ - κ₁)
 
 # Now for real
 amplitude = 1.0
@@ -96,10 +96,12 @@ amplitude = 1.0
 dmodel = Enzyme.make_zero(model)
 set_diffusivity!(dmodel, 0)
 
-@show(model)
-@show(c²₁)
-@show(c²₂)
-
 #autodiff(Reverse, set_initial_condition!, Duplicated(model, dmodel), Active(amplitude))
 #autodiff(Reverse, set_diffusivity!, Duplicated(model, dmodel), Active(κ))
-autodiff(Reverse, stable_diffusion!, Duplicated(model, dmodel), Const(amplitude), Active(κ))
+
+dc²_dκ = autodiff(Reverse, stable_diffusion!, Duplicated(model, dmodel), Const(amplitude), Active(κ))
+
+@info """ \n
+Enzyme computed $dc²_dκ
+Finite differences computed $dc²_dκ_fd
+"""
