@@ -1,3 +1,8 @@
+# Currently, running this requires
+# - Enzyme#main (eg, > v0.11.11)
+# - Oceananigans#glw/type-stable-with-tracers
+# - KernelAbstractions#enzymeact
+
 using Oceananigans
 using Oceananigans.TurbulenceClosures: with_tracers
 using Oceananigans.Models.HydrostaticFreeSurfaceModels: tracernames
@@ -6,6 +11,7 @@ using Enzyme
 Enzyme.API.runtimeActivity!(true)
 # Enzyme.API.printall!(true)
 # Enzyme.API.printactivity!(true)
+Enzyme.API.looseTypeAnalysis!(true)
 Enzyme.EnzymeRules.inactive_type(::Type{<:Oceananigans.Grids.AbstractGrid}) = true
 Enzyme.EnzymeRules.inactive_type(::Type{<:Oceananigans.Clock}) = true
 Enzyme.EnzymeRules.inactive_noinl(::typeof(Core._compute_sparams), args...) = nothing
