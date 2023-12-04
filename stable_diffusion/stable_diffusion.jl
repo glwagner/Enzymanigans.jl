@@ -36,9 +36,12 @@ end
 
 function set_initial_condition!(model, amplitude)
     # Set initial condition
-    width = 0.1
-    cᵢ(z) = amplitude * exp(-z^2 / (2width^2))
+    amplitude = Ref(amplitude)
+
+    # This has a "width" of 0.1
+    cᵢ(z) = amplitude[] * exp(-z^2 / 0.02)
     set!(model, c=cᵢ)
+
     return nothing
 end
 
@@ -84,14 +87,13 @@ dc²_dκ = (c²₂ - c²₁) / (κ₂ - κ₁)
 # Now for real
 amplitude = 1.0
 κ = 1.0
-dmodel = deepcopy(model)
+dmodel = Enzyme.make_zero(model)
 set_diffusivity!(dmodel, 0)
 
 @show(model)
 @show(c²₁)
 @show(c²₂)
 
-autodiff(Reverse, set_initial_condition!, Duplicated(model, dmodel), Active(amplitude))
+#autodiff(Reverse, set_initial_condition!, Duplicated(model, dmodel), Active(amplitude))
 #autodiff(Reverse, set_diffusivity!, Duplicated(model, dmodel), Active(κ))
-#autodiff(Reverse, stable_diffusion!, Duplicated(model, dmodel), Const(amplitude), Active(κ))
-
+autodiff(Reverse, stable_diffusion!, Duplicated(model, dmodel), Const(amplitude), Active(κ))
