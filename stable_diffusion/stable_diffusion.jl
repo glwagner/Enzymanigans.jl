@@ -4,104 +4,20 @@
 # - KernelAbstractions#enzymeact
 
 using Oceananigans
-using Oceananigans.TurbulenceClosures: with_tracers
-using Oceananigans.Models.HydrostaticFreeSurfaceModels: tracernames
 using Enzyme
 
 Enzyme.API.runtimeActivity!(true)
 # Enzyme.API.printall!(true)
-# Enzyme.API.printactivity!(true)
+Enzyme.API.instname!(true)
+Enzyme.API.printdiffuse!(true)
+Enzyme.API.printactivity!(true)
 Enzyme.API.looseTypeAnalysis!(true)
 Enzyme.EnzymeRules.inactive_type(::Type{<:Oceananigans.Grids.AbstractGrid}) = true
 Enzyme.EnzymeRules.inactive_type(::Type{<:Oceananigans.Clock}) = true
 Enzyme.EnzymeRules.inactive_noinl(::typeof(Core._compute_sparams), args...) = nothing
 
-const maximum_diffusivity = 100
+Enzyme.autodiff_thunk(ReverseSplitWithPrimal, Const{typeof(Oceananigans.Operators.interpolation_operator)}, Duplicated, Const{typeof((Oceananigans.Grids.Center, Oceananigans.Grids.Center, Oceananigans.Grids.Center))}, Const{typeof((Oceananigans.Grids.Center, Oceananigans.Grids.Center, Oceananigans.Grids.Center))})
+# Enzyme.Compiler.runtime_generic_augfwd(Va({(false, false, false, true, false, false, false, false)), Val(1), Val((true, true, true, true, true, true, true, true)), Val(@NamedTuple{1, 2, 3}), f::typeof(Oceananigans.AbstractOperations._binary_operation), df::Nothing, primal_1::Tuple{DataType, DataType, DataType}, shadow_1_1::Nothing, primal_2::typeof(^), shadow_2_1::Nothing, primal_3::Field{Center, Center, Center, Nothing, RectilinearGrid{Float64, Flat, Flat, Bounded, Float64, Float64, Float64, StepRangeLen{Float64, Base.TwicePrecision{Float64}, Base.TwicePrecision{Float64}, Int64}, StepRangeLen{Float64, Base.TwicePrecision{Float64}, Base.TwicePrecision{Float64}, Int64}, OffsetArrays.OffsetVector{Float64, StepRangeLen{Float64, Base.TwicePrecision{Float64}, Base.TwicePrecision{Float64}, Int64}}, CPU}, Tuple{Colon, Colon, Colon}, OffsetArrays.OffsetArray{Float64, 3, Array{Float64, 3}}, Float64, FieldBoundaryConditions{Nothing, Nothing, Nothing, Nothing, BoundaryCondition{Oceananigans.BoundaryConditions.Flux, Nothing}, BoundaryCondition{Oceananigans.BoundaryConditions.Flux, Nothing}, BoundaryCondition{Oceananigans.BoundaryConditions.Flux, Nothing}}, Nothing, Oceananigans.Fields.FieldBoundaryBuffers{Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing}}, shadow_3_1::Field{Center, Center, Center, Nothing, RectilinearGrid{Float64, Flat, Flat, Bounded, Float64, Float64, Float64, StepRangeLen{Float64, Base.TwicePrecision{Float64}, Base.TwicePrecision{Float64}, Int64}, StepRangeLen{Float64, Base.TwicePrecision{Float64}, Base.TwicePrecision{Float64}, Int64}, OffsetArrays.OffsetVector{Float64, StepRangeLen{Float64, Base.TwicePrecision{Float64}, Base.TwicePrecision{Float64}, Int64}}, CPU}, Tuple{Colon, Colon, Colon}, OffsetArrays.OffsetArray{Float64, 3, Array{Float64, 3}}, Float64, FieldBoundaryConditions{Nothing, Nothing, Nothing, Nothing, BoundaryCondition{Oceananigans.BoundaryConditions.Flux, Nothing}, BoundaryCondition{Oceananigans.BoundaryConditions.Flux, Nothing}, BoundaryCondition{Oceananigans.BoundaryConditions.Flux, Nothing}}, Nothing, Oceananigans.Fields.FieldBoundaryBuffers{Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing}}, primal_4::Int64, shadow_4_1::Nothing, primal_5::Tuple{DataType, DataType, DataType}, shadow_5_1::Nothing, primal_6::Tuple{DataType, DataType, DataType}, shadow_6_1::Nothing, primal_7::RectilinearGrid{Float64, Flat, Flat, Bounded, Float64, Float64, Float64, StepRangeLen{Float64, Base.TwicePrecision{Float64}, Base.TwicePrecision{Float64}, Int64}, StepRangeLen{Float64, Base.TwicePrecision{Float64}, Base.TwicePrecision{Float64}, Int64}, OffsetArrays.OffsetVector{Float64, StepRangeLen{Float64, Base.TwicePrecision{Float64}, Base.TwicePrecision{Float64}, Int64}}, CPU}, shadow_7_1::Nothing)
+ 
 
-grid = RectilinearGrid(size=128, z=(-0.5, 0.5), topology=(Flat, Flat, Bounded))
-diffusion = VerticalScalarDiffusivity(κ=1.0)
-
-model = HydrostaticFreeSurfaceModel(; grid,
-                                    tracers = :c,
-                                    buoyancy = nothing,
-                                    velocities = PrescribedVelocityFields(),
-                                    closure = diffusion)
-
-"""
-    set_diffusivity!(model, diffusivity)
-
-Change diffusivity of model to `diffusivity`.
-"""
-function set_diffusivity!(model, diffusivity)
-    closure = VerticalScalarDiffusivity(; κ=diffusivity)
-    names = tuple(:c) # tracernames(model.tracers)
-    closure = with_tracers(names, closure)
-    model.closure = closure
-    return nothing
-end
-
-function set_initial_condition!(model, amplitude)
-    # Set initial condition
-    amplitude = Ref(amplitude)
-
-    # This has a "width" of 0.1
-    cᵢ(z) = amplitude[] * exp(-z^2 / 0.02)
-    set!(model, c=cᵢ)
-
-    return nothing
-end
-
-function stable_diffusion!(model, amplitude, diffusivity)
-    set_diffusivity!(model, diffusivity)
-    set_initial_condition!(model, amplitude)
-    
-    # Do time-stepping
-    Nx, Ny, Nz = size(model.grid)
-    κ_max = maximum_diffusivity
-    Δz = 2π / Nz
-    Δt = 1e-1 * Δz^2 / κ_max
-
-    model.clock.time = 0
-    model.clock.iteration = 0
-
-    for n = 1:10
-        time_step!(model, Δt; euler=true)
-    end
-
-    # Compute scalar metric
-    c = model.tracers.c
-
-    # Hard way
-    # c² = c^2
-    # sum_c² = sum(c²)
-
-    # Another way to compute it
-    sum_c² = 0.0
-    for k = 1:Nz
-        sum_c² += c[1, 1, k]^2
-    end
-
-    return sum_c²::Float64
-end
-
-# Compute derivative by hand
-κ₁, κ₂ = 0.9, 1.1
-c²₁ = stable_diffusion!(model, 1, κ₁)
-c²₂ = stable_diffusion!(model, 1, κ₂)
-dc²_dκ_fd = (c²₂ - c²₁) / (κ₂ - κ₁)
-
-# Now for real
-amplitude = 1.0
-κ = 1.0
-dmodel = Enzyme.make_zero(model)
-set_diffusivity!(dmodel, 0)
-
-#autodiff(Reverse, set_initial_condition!, Duplicated(model, dmodel), Active(amplitude))
-#autodiff(Reverse, set_diffusivity!, Duplicated(model, dmodel), Active(κ))
-
-dc²_dκ = autodiff(Reverse, stable_diffusion!, Duplicated(model, dmodel), Const(amplitude), Active(κ))
-
-@info """ \n
-Enzyme computed $dc²_dκ
-Finite differences computed $dc²_dκ_fd
-"""
+# dc²_dκ = autodiff(Reverse, stable_diffusion!, Duplicated(model, dmodel))
