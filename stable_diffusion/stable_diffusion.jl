@@ -46,6 +46,11 @@ set!(v, v₀)
 fill_halo_regions!(u)
 fill_halo_regions!(v)
 
+# TODO:
+# 1. Make the velocity fields evolve
+# 2. Add surface fluxes
+# 3. Do a problem where we invert for the tracer fluxes (maybe with CATKE)
+
 model = HydrostaticFreeSurfaceModel(; grid,
                                     tracer_advection = WENO(),
                                     tracers = :c,
