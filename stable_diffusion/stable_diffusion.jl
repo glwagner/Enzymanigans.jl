@@ -5,6 +5,8 @@
 
 using Oceananigans
 using Oceananigans.TurbulenceClosures: with_tracers
+using Oceananigans.BoundaryConditions: fill_halo_regions!
+using Oceananigans.Fields: ConstantField
 using Oceananigans.Models.HydrostaticFreeSurfaceModels: tracernames
 using Enzyme
 
@@ -18,14 +20,60 @@ Enzyme.EnzymeRules.inactive_noinl(::typeof(Core._compute_sparams), args...) = no
 
 const maximum_diffusivity = 100
 
-grid = RectilinearGrid(size=128, z=(-0.5, 0.5), topology=(Flat, Flat, Bounded))
-diffusion = VerticalScalarDiffusivity(κ=1.0)
+Nx = Ny = 64
+Nz = 8
+
+x = y = (-π, π)
+z = (-0.5, 0.5)
+topology = (Periodic, Periodic, Bounded)
+
+grid = RectilinearGrid(size=(Nx, Ny, Nz); x, y, z, topology)
+diffusion = VerticalScalarDiffusivity(κ=0.1)
+
+u = XFaceField(grid)
+v = YFaceField(grid)
+
+# ψ(x, y) = cos(x) * cos(y)
+# u = - ∂y ψ = - cos(x) * sin(y)
+# v = + ∂x ψ = + sin(x) * cos(y)
+# ... and scale with U:
+U = 1
+u₀(x, y, z) = - U * cos(x + π/4) * sin(y) * (z + 0.5)
+v₀(x, y, z) = + U * sin(x + π/4) * cos(y) * (z + 0.5)
+
+set!(u, u₀)
+set!(v, v₀)
+fill_halo_regions!(u)
+fill_halo_regions!(v)
 
 model = HydrostaticFreeSurfaceModel(; grid,
+                                    tracer_advection = WENO(),
                                     tracers = :c,
                                     buoyancy = nothing,
-                                    velocities = PrescribedVelocityFields(),
+                                    velocities = PrescribedVelocityFields(; u, v),
                                     closure = diffusion)
+
+#=
+L = 0.5
+cᵢ(x, y, z) = exp(-(x^2 + y^2) / 2L^2)
+set!(model, c=cᵢ)
+Δt = U * 0.2π / Nx
+simulation = Simulation(model; Δt, stop_time = 1)
+progress(sim) = @info string("Iter: ", iteration(sim), ", time: ", time(sim))
+simulation.callbacks[:progress] = Callback(progress, IterationInterval(10))
+run!(simulation)
+
+c = model.tracers.c
+using GLMakie
+fig = Figure()
+axu = Axis(fig[1, 1])
+axv = Axis(fig[1, 2])
+axc = Axis(fig[1, 3])
+heatmap!(axu, interior(u, :, :, 1))
+heatmap!(axv, interior(v, :, :, 1))
+heatmap!(axc, interior(c, :, :, 1))
+display(fig)
+=#
 
 """
     set_diffusivity!(model, diffusivity)
@@ -45,7 +93,7 @@ function set_initial_condition!(model, amplitude)
     amplitude = Ref(amplitude)
 
     # This has a "width" of 0.1
-    cᵢ(z) = amplitude[] * exp(-z^2 / 0.02)
+    cᵢ(x, y, z) = amplitude[] * exp(-z^2 / 0.02 - (x^2 + y^2) / 0.05)
     set!(model, c=cᵢ)
 
     return nothing
@@ -77,8 +125,8 @@ function stable_diffusion!(model, amplitude, diffusivity)
 
     # Another way to compute it
     sum_c² = 0.0
-    for k = 1:Nz
-        sum_c² += c[1, 1, k]^2
+    for i = 1:Nx, j = 1:Ny, k = 1:Nz
+        sum_c² += c[i, j, k]^2
     end
 
     return sum_c²::Float64
@@ -99,7 +147,11 @@ set_diffusivity!(dmodel, 0)
 #autodiff(Reverse, set_initial_condition!, Duplicated(model, dmodel), Active(amplitude))
 #autodiff(Reverse, set_diffusivity!, Duplicated(model, dmodel), Active(κ))
 
-dc²_dκ = autodiff(Reverse, stable_diffusion!, Duplicated(model, dmodel), Const(amplitude), Active(κ))
+dc²_dκ = autodiff(Enzyme.Reverse,
+                  stable_diffusion!,
+                  Duplicated(model, dmodel),
+                  Const(amplitude),
+                  Active(κ))
 
 @info """ \n
 Enzyme computed $dc²_dκ
