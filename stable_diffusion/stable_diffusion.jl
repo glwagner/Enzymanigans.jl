@@ -13,7 +13,7 @@ Enzyme.API.printdiffuse!(true)
 Enzyme.API.printactivity!(true)
 Enzyme.API.looseTypeAnalysis!(true)
 Enzyme.EnzymeRules.inactive_type(::Type{<:Oceananigans.Grids.AbstractGrid}) = true
-Enzyme.EnzymeRules.inactive_type(::Type{<:Oceananigans.Clock}) = true
+Enzyme.EnzymeRules.inactive_type(::Type{<:Oceananigans.Clock}) = truels
 Enzyme.EnzymeRules.inactive_noinl(::typeof(Core._compute_sparams), args...) = nothing
 
 Enzyme.autodiff_thunk(ReverseSplitWithPrimal, Const{typeof(Oceananigans.Operators.interpolation_operator)}, Duplicated, Const{typeof((Oceananigans.Grids.Center, Oceananigans.Grids.Center, Oceananigans.Grids.Center))}, Const{typeof((Oceananigans.Grids.Center, Oceananigans.Grids.Center, Oceananigans.Grids.Center))})
