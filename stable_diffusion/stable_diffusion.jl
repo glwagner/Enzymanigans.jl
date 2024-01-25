@@ -46,6 +46,18 @@ set!(v, v₀)
 fill_halo_regions!(u)
 fill_halo_regions!(v)
 
+@inline function tracer_flux(x, y, t, c, p)
+    c₀ = p.surface_tracer_concentration
+    u★ = p.piston_velocity
+    return - u★ * (c₀ - c)
+end
+
+parameters = (surface_tracer_concentration = 1,
+              piston_velocity = 0.1)
+
+top_c_bc = FluxBoundaryCondition(tracer_flux; parameters)
+c_bcs = FieldBoundaryConditions(top=top_c_bc)
+
 # TODO:
 # 1. Make the velocity fields evolve
 # 2. Add surface fluxes
@@ -56,6 +68,7 @@ model = HydrostaticFreeSurfaceModel(; grid,
                                     tracers = :c,
                                     buoyancy = nothing,
                                     velocities = PrescribedVelocityFields(; u, v),
+                                    boundary_conditions = (; c=c_bcs),
                                     closure = diffusion)
 
 #=
