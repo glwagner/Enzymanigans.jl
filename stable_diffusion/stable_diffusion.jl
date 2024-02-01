@@ -4,9 +4,7 @@
 # - KernelAbstractions#enzymeact
 
 using Oceananigans
-using Oceananigans.TurbulenceClosures: with_tracers
-using Oceananigans.BoundaryConditions: fill_halo_regions!
-using Oceananigans.Fields: ConstantField
+using Oceananigans: prognostic_fields
 using Oceananigans.Models.HydrostaticFreeSurfaceModels: tracernames
 using Enzyme
 
@@ -55,20 +53,45 @@ model = HydrostaticFreeSurfaceModel(; grid,
                                     velocities = PrescribedVelocityFields(; u, v),
                                     boundary_conditions = (; c=c_bcs))
 
-function set_initial_condition!(model)
-    # Set initial condition
-    amplitude = Ref(1.0)
+function set_initial_condition!(maybe_nested_tuple)
 
-    # This has a "width" of 0.1
-    cᵢ(x, y, z) = amplitude[]
-    set!(model, c=cᵢ)
+    fields = flatten_tuple(Tuple(tuplify(ai) for ai in maybe_nested_tuple))
+    
+    # Fill the rest
+    bc = map(boundary_conditions, fields)
+    
+    sides = [:bottom_and_top]
+    bc = Tuple((map(extract_bottom_bc, bc), map(extract_top_bc, bc)) for side in sides)
 
     return nothing
 end
 
+function boundary_conditions(f::Field)
+    return f.boundary_conditions
+end
+
+@inline extract_bottom_bc(thing) = thing.bottom
+@inline extract_top_bc(thing) = thing.top
+
+# Utility for extracting values from nested NamedTuples
+@inline tuplify(a::NamedTuple) = Tuple(tuplify(ai) for ai in a)
+@inline tuplify(a) = a
+
+# Outer-inner form
+@inline flatten_tuple(a::Tuple) = tuple(inner_flatten_tuple(a[1])..., inner_flatten_tuple(a[2:end])...)
+@inline flatten_tuple(a::Tuple{<:Any}) = tuple(inner_flatten_tuple(a[1])...)
+
+@inline inner_flatten_tuple(a) = tuple(a)
+@inline inner_flatten_tuple(a::Tuple) = flatten_tuple(a)
+@inline inner_flatten_tuple(a::Tuple{}) = ()
+
 # Now for real
 dmodel = Enzyme.make_zero(model)
 
+#@show prognostic_fields(model)[1]
+#@show c_bcs
+
+
 dc²_dκ = autodiff(Enzyme.Reverse,
                   set_initial_condition!,
-                  Duplicated(model, dmodel))
+                  Duplicated(prognostic_fields(model), prognostic_fields(dmodel)))
