@@ -16,8 +16,6 @@ Enzyme.EnzymeRules.inactive_type(::Type{<:Oceananigans.Grids.AbstractGrid}) = tr
 Enzyme.EnzymeRules.inactive_type(::Type{<:Oceananigans.Clock}) = true
 Enzyme.EnzymeRules.inactive_noinl(::typeof(Core._compute_sparams), args...) = nothing
 
-const maximum_diffusivity = 100
-
 Nx = Ny = 64
 Nz = 8
 
@@ -31,9 +29,7 @@ u = XFaceField(grid)
 v = YFaceField(grid)
 
 @inline function tracer_flux(x, y, t, c, p)
-    c₀ = p.surface_tracer_concentration
-    u★ = p.piston_velocity
-    return - u★ * (c₀ - c)
+    return c
 end
 
 parameters = (surface_tracer_concentration = 1,
@@ -55,7 +51,7 @@ model = HydrostaticFreeSurfaceModel(; grid,
 
 function set_initial_condition!(maybe_nested_tuple)
 
-    fields = flatten_tuple(Tuple(tuplify(ai) for ai in maybe_nested_tuple))
+    fields = flatten_tuple(Tuple(ai for ai in maybe_nested_tuple))
     
     # Fill the rest
     bc = map(boundary_conditions, fields)
@@ -74,16 +70,11 @@ end
 @inline extract_top_bc(thing) = thing.top
 
 # Utility for extracting values from nested NamedTuples
-@inline tuplify(a::NamedTuple) = Tuple(tuplify(ai) for ai in a)
-@inline tuplify(a) = a
-
-# Outer-inner form
 @inline flatten_tuple(a::Tuple) = tuple(inner_flatten_tuple(a[1])..., inner_flatten_tuple(a[2:end])...)
 @inline flatten_tuple(a::Tuple{<:Any}) = tuple(inner_flatten_tuple(a[1])...)
 
 @inline inner_flatten_tuple(a) = tuple(a)
-@inline inner_flatten_tuple(a::Tuple) = flatten_tuple(a)
-@inline inner_flatten_tuple(a::Tuple{}) = ()
+#@inline inner_flatten_tuple(a::Tuple) = flatten_tuple(a)
 
 # Now for real
 dmodel = Enzyme.make_zero(model)
