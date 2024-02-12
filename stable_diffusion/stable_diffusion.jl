@@ -57,7 +57,15 @@ function set_initial_condition!(maybe_nested_tuple)
     bc = map(boundary_conditions, fields)
     
     sides = [:bottom_and_top]
-    bc = Tuple((map(extract_bottom_bc, bc), map(extract_top_bc, bc)) for side in sides)
+    # Try to fix this line
+    #bc2 = Tuple((map(extract_bottom_bc, bc), map(extract_top_bc, bc)) for side in sides)
+
+
+    # Inspiration:
+    bc2 = ntuple(Val(length(sides))) do i
+        Base.@_inline_meta
+        (map(extract_bottom_bc, bc), map(extract_top_bc, bc))
+    end
 
     return nothing
 end
@@ -74,13 +82,9 @@ end
 @inline flatten_tuple(a::Tuple{<:Any}) = tuple(inner_flatten_tuple(a[1])...)
 
 @inline inner_flatten_tuple(a) = tuple(a)
-#@inline inner_flatten_tuple(a::Tuple) = flatten_tuple(a)
 
 # Now for real
 dmodel = Enzyme.make_zero(model)
-
-#@show prognostic_fields(model)[1]
-#@show c_bcs
 
 
 dc²_dκ = autodiff(Enzyme.Reverse,
