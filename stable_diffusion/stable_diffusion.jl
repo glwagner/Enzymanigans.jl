@@ -6,6 +6,7 @@ using Oceananigans.TurbulenceClosures: with_tracers
 using Oceananigans.BoundaryConditions: fill_halo_regions!
 using Oceananigans.Fields: ConstantField
 using Oceananigans.Models.HydrostaticFreeSurfaceModels: tracernames
+using Oceananigans.Utils: apply_regionally!
 using Enzyme
 
 Enzyme.API.runtimeActivity!(true)
@@ -43,7 +44,7 @@ function set_initial_condition!(model, amplitude)
 
     # This has a "width" of 0.1
     cᵢ(x, y, z) = amplitude[]
-    set!(model, c=cᵢ)
+    set!(model.tracers.c, cᵢ)
 
     return nothing
 end
