@@ -1,7 +1,5 @@
 # Currently, running this requires
 # - Enzyme#main (eg, > v0.11.11)
-# - Oceananigans#glw/type-stable-with-tracers
-# - KernelAbstractions#enzymeact
 
 using Oceananigans
 using Oceananigans.TurbulenceClosures: with_tracers
