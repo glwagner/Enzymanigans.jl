@@ -17,12 +17,12 @@ Enzyme.EnzymeRules.inactive_noinl(::typeof(Core._compute_sparams), args...) = no
 
 const maximum_diffusivity = 100
 
-Nx = Ny = 64
-Nz = 8
+Nx = Ny = 4#64
+Nz = 2#8
 
 x = y = (-π, π)
 z = (-0.5, 0.5)
-topology = (Periodic, Periodic, Bounded)
+topology = (Bounded, Bounded, Bounded)
 
 grid = RectilinearGrid(size=(Nx, Ny, Nz); x, y, z, topology)
 diffusion = VerticalScalarDiffusivity(κ=0.1)
@@ -35,8 +35,8 @@ v = YFaceField(grid)
 # v = + ∂x ψ = + sin(x) * cos(y)
 # ... and scale with U:
 U = 1
-u₀(x, y, z) = - U * cos(x + π/4) * sin(y) * (z + 0.5)
-v₀(x, y, z) = + U * sin(x + π/4) * cos(y) * (z + 0.5)
+u₀(x, y, z) = - U * 0.5 * (z + 0.5)#- U * cos(x + π/4) * sin(y) * (z + 0.5)
+v₀(x, y, z) = + U * 0.5 * (z + 0.5)#+ U * sin(x + π/4) * cos(y) * (z + 0.5)
 
 set!(u, u₀)
 set!(v, v₀)
@@ -57,7 +57,7 @@ model = HydrostaticFreeSurfaceModel(; grid,
 
 
 cᵢ = zeros(size(model.tracers.c))
-cᵢ[32, 32, 2] = 1
+#cᵢ[32, 32, 2] = 1
 
 """
     set_diffusivity!(model, diffusivity)
@@ -88,7 +88,9 @@ function set_initial_data!(model, amplitude)#, cᵢ)
     amplitude = Ref(amplitude)
 
     # This has a "width" of 0.1
-    cᵢ(x, y, z) = amplitude[] * exp(-z^2 / 0.02 - (x^2 + y^2) / 0.05) .+ (0.025 * (rand()))
+    cᵢ = zeros(size(model.tracers.c))
+    cᵢ[2:3, 2:3, 1] .= 1
+    #cᵢ(x, y, z) = amplitude[] * exp(-z^2 / 0.02 - (x^2 + y^2) / 0.05) .+ (0.025 * (rand()))
     #cᵢ = cᵢ .+ 
     set!(model, c=cᵢ)
 
@@ -112,7 +114,7 @@ function stable_diffusion_data!(model, amplitude, diffusivity, cᵢ)
 
     c₀ = deepcopy(model.tracers.c)
 
-    for n = 1:10
+    for n = 1:2
         time_step!(model, Δt; euler=true)
     end
 
@@ -163,11 +165,11 @@ c₀, cₙ = stable_diffusion_data!(model, amplitude, κ, cᵢ)
 #@show J
 
 #=
-# Compute ∂J / ∂κ by hand:
+# Compute ∂J / ∂cᵢ by hand:
 κ₁, κ₂ = κ - 0.01, κ + 0.01
 J¹ = stable_diffusion!(model, amplitude, κ₁, cᵢ, cₙ)
 J² = stable_diffusion!(model, amplitude, κ₂, cᵢ, cₙ)
-dJ_dκ_fd = (J² - J¹) / (κ₂ - κ₁)
+dJ_dcᵢ_fd = (J² - J¹) / (κ₂ - κ₁)
 @show dJ_dκ_fd
 =#
 
@@ -177,15 +179,16 @@ dcᵢ = Enzyme.make_zero(cᵢ)
 dcₙ = Enzyme.make_zero(cₙ)
 set_diffusivity!(dmodel, 0)
 
+#=
 # I believe this snags the center x/y/z values of each grid cell:
 @show nodes(grid, (Center(), Center(), Center()))
-
 c = model.tracers.c
 @show c
 @show size(c)
-
+=#
 
 cᵢ = zeros(size(model.tracers.c))
+cᵢ[2:3, 2:3, 1] .= 1.2
 #cᵢ[32, 32, 2] = 5
 #amplitude = 4
 #κ = 9
@@ -200,12 +203,14 @@ for i = 1:40
 
     #@show dJ
     @show norm(dcᵢ)
+    @show dcᵢ
     #global amplitude = amplitude - dJ[1][2] * 0.02
     #global κ = κ - dJ[1][3]
     #@show amplitude
     #@show κ
     global cᵢ .= cᵢ .- (dcᵢ .* 0.02)
     @show (norm(cᵢ - c₀) / norm(c₀))
+    @show cᵢ
     # TODO: show how this cᵢ compares to the true-data version using norm error
 end
 
