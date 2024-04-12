@@ -66,7 +66,7 @@ model = HydrostaticFreeSurfaceModel(; grid,
                                     tracers = :c,
                                     buoyancy = nothing,
                                     velocities = PrescribedVelocityFields(; u, v),
-                                    boundary_conditions = (; c=c_bcs),
+                                    #boundary_conditions = (; c=c_bcs),
                                     closure = diffusion)
 
 #=
