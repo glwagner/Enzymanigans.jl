@@ -45,9 +45,9 @@ end
 # Now for real
 amplitude = 1.0
 dmodel = Enzyme.make_zero(model)
-#@show model.tracers.c
-#@show typeof(model.tracers.c)
-
+@show model.tracers.c
+@show typeof(model.tracers.c)
+#=
 dc²_dκ = autodiff(Enzyme.Reverse,
                   set_initial_condition!,
                   Duplicated(model, dmodel),
@@ -56,3 +56,4 @@ dc²_dκ = autodiff(Enzyme.Reverse,
 @info """ \n
 Enzyme computed $dc²_dκ
 """
+=#
