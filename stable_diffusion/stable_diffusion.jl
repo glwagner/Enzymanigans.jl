@@ -2,6 +2,7 @@
 # - Enzyme#main (eg, > v0.11.11)
 
 using Oceananigans
+using Oceananigans.Fields: FunctionField
 using Enzyme
 
 Enzyme.API.runtimeActivity!(true)
@@ -30,27 +31,28 @@ model = HydrostaticFreeSurfaceModel(; grid,
                                     tracers = :c,
                                     buoyancy = nothing)
 
-function set_initial_condition!(model, amplitude)
+function set_initial_condition!(model_tracer, amplitude)
     # Set initial condition
     amplitude = Ref(amplitude)
 
     # This has a "width" of 0.1
     cᵢ(x, y, z) = amplitude[]
-    set!(model, c=1)
+    model_tracer .= FunctionField(location(model_tracer), cᵢ, model_tracer.grid)
 
     return nothing
 end
 
 
 # Now for real
+model_tracer = model.tracers.c
 amplitude = 1.0
-dmodel = Enzyme.make_zero(model)
-@show model.tracers.c
-@show typeof(model.tracers.c)
+dmodel_tracer = Enzyme.make_zero(model_tracer)
+@show model_tracer
+@show typeof(model_tracer)
 
 dc²_dκ = autodiff(Enzyme.Reverse,
                   set_initial_condition!,
-                  Duplicated(model, dmodel),
+                  Duplicated(model_tracer, dmodel_tracer),
                   Const(amplitude))
 
 @info """ \n
