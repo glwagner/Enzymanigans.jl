@@ -36,7 +36,7 @@ function set_initial_condition!(model, amplitude)
 
     # This has a "width" of 0.1
     cᵢ(x, y, z) = amplitude[]
-    set!(model, c=cᵢ)
+    set!(model, c=1)
 
     return nothing
 end
@@ -47,7 +47,7 @@ amplitude = 1.0
 dmodel = Enzyme.make_zero(model)
 @show model.tracers.c
 @show typeof(model.tracers.c)
-#=
+
 dc²_dκ = autodiff(Enzyme.Reverse,
                   set_initial_condition!,
                   Duplicated(model, dmodel),
@@ -56,4 +56,3 @@ dc²_dκ = autodiff(Enzyme.Reverse,
 @info """ \n
 Enzyme computed $dc²_dκ
 """
-=#
