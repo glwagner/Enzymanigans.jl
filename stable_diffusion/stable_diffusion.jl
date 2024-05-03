@@ -4,6 +4,8 @@
 using Oceananigans
 using Oceananigans.Fields: FunctionField
 using Enzyme
+using Oceananigans: architecture
+using KernelAbstractions
 
 Enzyme.API.runtimeActivity!(true)
 # Enzyme.API.printall!(true)
@@ -37,24 +39,73 @@ function set_initial_condition!(model_tracer, amplitude)
 
     # This has a "width" of 0.1
     cᵢ(x, y, z) = amplitude[]
-    model_tracer .= FunctionField(location(model_tracer), cᵢ, model_tracer.grid)
+    temp = Base.broadcasted(Base.identity, FunctionField((Center, Center, Center), cᵢ, model_tracer.grid))
+
+    #temp2 = Base.Broadcast.combine_styles(model_tracer, temp)
+    #Base.Broadcast.materialize!(temp2, model_tracer, temp)
+
+    temp = convert(Base.Broadcast.Broadcasted{Nothing}, temp)
+    grid = model_tracer.grid
+    arch = architecture(model_tracer)
+    bc′ = temp
+
+    param = Oceananigans.Utils.KernelParameters(size(model_tracer), map(offset_index, model_tracer.indices))
+    Oceananigans.Utils.launch!(arch, grid, param, _broadcast_kernel!, model_tracer, bc′)
+
+    #return model_tracer
 
     return nothing
 end
 
+@inline offset_index(::Colon) = 0
+@inline offset_index(range::UnitRange) = range[1] - 1
+
+@kernel function _broadcast_kernel!(dest, bc)
+  i, j, k = @index(Global, NTuple)
+  @inbounds dest[i, j, k] = bc[i, j, k]
+end
 
 # Now for real
 model_tracer = model.tracers.c
-amplitude = 1.0
 dmodel_tracer = Enzyme.make_zero(model_tracer)
-@show model_tracer
-@show typeof(model_tracer)
+#@show model_tracer
+#@show typeof(model_tracer)
 
+amplitude = 1.0
+# Set initial condition
+amplitude = Ref(amplitude)
+
+# This has a "width" of 0.1
+cᵢ(x, y, z) = amplitude[]
+temp = Base.broadcasted(Base.identity, FunctionField((Center, Center, Center), cᵢ, model_tracer.grid))
+
+#temp2 = Base.Broadcast.combine_styles(model_tracer, temp)
+#Base.Broadcast.materialize!(temp2, model_tracer, temp)
+
+temp = convert(Base.Broadcast.Broadcasted{Nothing}, temp)
+grid = model_tracer.grid
+arch = architecture(model_tracer)
+bc′ = temp
+
+param = Oceananigans.Utils.KernelParameters(size(model_tracer), map(offset_index, model_tracer.indices))
+Oceananigans.Utils.launch!(arch, grid, param, _broadcast_kernel!, model_tracer, bc′)
+
+autodiff(Enzyme.Reverse,
+         Oceananigans.Utils.launch!,
+         Const(arch),
+         Const(grid),
+         Const(param),
+         Const(_broadcast_kernel!),
+         Duplicated(model_tracer, dmodel_tracer),
+         Const(bc′))
+
+#=
 dc²_dκ = autodiff(Enzyme.Reverse,
                   set_initial_condition!,
                   Duplicated(model_tracer, dmodel_tracer),
-                  Const(amplitude))
+                  Const(1.0))
 
 @info """ \n
 Enzyme computed $dc²_dκ
 """
+=#
