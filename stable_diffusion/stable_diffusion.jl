@@ -8,9 +8,9 @@ using Oceananigans.Fields: ConstantField
 using Oceananigans.Models.HydrostaticFreeSurfaceModels: tracernames
 using Enzyme
 
-Enzyme.API.runtimeActivity!(true)
-# Enzyme.API.printall!(true)
-# Enzyme.API.printactivity!(true)
+#Enzyme.API.runtimeActivity!(true)
+#Enzyme.API.printall!(true)
+#Enzyme.API.printactivity!(true)
 Enzyme.API.looseTypeAnalysis!(true)
 Enzyme.EnzymeRules.inactive_type(::Type{<:Oceananigans.Grids.AbstractGrid}) = true
 Enzyme.EnzymeRules.inactive_type(::Type{<:Oceananigans.Clock}) = true
