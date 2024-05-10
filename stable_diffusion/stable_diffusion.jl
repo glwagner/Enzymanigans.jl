@@ -8,8 +8,6 @@ using Oceananigans: architecture
 using KernelAbstractions
 
 Enzyme.API.runtimeActivity!(true)
-# Enzyme.API.printall!(true)
-# Enzyme.API.printactivity!(true)
 Enzyme.API.looseTypeAnalysis!(true)
 Enzyme.EnzymeRules.inactive_type(::Type{<:Oceananigans.Grids.AbstractGrid}) = true
 Enzyme.EnzymeRules.inactive_type(::Type{<:Oceananigans.Clock}) = true
@@ -24,11 +22,6 @@ topology = (Periodic, Periodic, Bounded)
 
 grid = RectilinearGrid(size=(Nx, Ny, Nz); x, y, z, topology)
 
-# TODO:
-# 1. Make the velocity fields evolve
-# 2. Add surface fluxes
-# 3. Do a problem where we invert for the tracer fluxes (maybe with CATKE)
-
 model = HydrostaticFreeSurfaceModel(; grid,
                                     tracers = :c,
                                     buoyancy = nothing)
@@ -41,9 +34,6 @@ function set_initial_condition!(model_tracer, amplitude)
     cᵢ(x, y, z) = amplitude[]
     temp = Base.broadcasted(Base.identity, FunctionField((Center, Center, Center), cᵢ, model_tracer.grid))
 
-    #temp2 = Base.Broadcast.combine_styles(model_tracer, temp)
-    #Base.Broadcast.materialize!(temp2, model_tracer, temp)
-
     temp = convert(Base.Broadcast.Broadcasted{Nothing}, temp)
     grid = model_tracer.grid
     arch = architecture(model_tracer)
@@ -51,8 +41,6 @@ function set_initial_condition!(model_tracer, amplitude)
 
     param = Oceananigans.Utils.KernelParameters(size(model_tracer), map(offset_index, model_tracer.indices))
     Oceananigans.Utils.launch!(arch, grid, param, _broadcast_kernel!, model_tracer, bc′)
-
-    #return model_tracer
 
     return nothing
 end
@@ -65,22 +53,15 @@ end
   @inbounds dest[i, j, k] = bc[i, j, k]
 end
 
-# Now for real
 model_tracer = model.tracers.c
 dmodel_tracer = Enzyme.make_zero(model_tracer)
-#@show model_tracer
-#@show typeof(model_tracer)
 
 amplitude = 1.0
-# Set initial condition
 amplitude = Ref(amplitude)
 
 # This has a "width" of 0.1
 cᵢ(x, y, z) = amplitude[]
 temp = Base.broadcasted(Base.identity, FunctionField((Center, Center, Center), cᵢ, model_tracer.grid))
-
-#temp2 = Base.Broadcast.combine_styles(model_tracer, temp)
-#Base.Broadcast.materialize!(temp2, model_tracer, temp)
 
 temp = convert(Base.Broadcast.Broadcasted{Nothing}, temp)
 grid = model_tracer.grid
@@ -98,14 +79,3 @@ autodiff(Enzyme.Reverse,
          Const(_broadcast_kernel!),
          Duplicated(model_tracer, dmodel_tracer),
          Const(bc′))
-
-#=
-dc²_dκ = autodiff(Enzyme.Reverse,
-                  set_initial_condition!,
-                  Duplicated(model_tracer, dmodel_tracer),
-                  Const(1.0))
-
-@info """ \n
-Enzyme computed $dc²_dκ
-"""
-=#
