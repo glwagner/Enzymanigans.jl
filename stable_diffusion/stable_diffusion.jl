@@ -8,7 +8,7 @@ using Oceananigans.Fields: ConstantField
 using Oceananigans.Models.HydrostaticFreeSurfaceModels: tracernames
 using Enzyme
 
-#Enzyme.API.runtimeActivity!(true)
+Enzyme.API.runtimeActivity!(true)
 #Enzyme.API.printall!(true)
 #Enzyme.API.printactivity!(true)
 Enzyme.API.looseTypeAnalysis!(true)
