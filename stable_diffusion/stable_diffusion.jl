@@ -8,6 +8,8 @@ using Oceananigans.Fields: ConstantField
 using Oceananigans.Models.HydrostaticFreeSurfaceModels: tracernames
 using Enzyme
 
+using BenchmarkTools
+
 Enzyme.API.runtimeActivity!(true)
 # Enzyme.API.printall!(true)
 # Enzyme.API.printactivity!(true)
@@ -66,7 +68,7 @@ model = HydrostaticFreeSurfaceModel(; grid,
                                     tracers = :c,
                                     buoyancy = nothing,
                                     velocities = PrescribedVelocityFields(; u, v),
-                                    boundary_conditions = (; c=c_bcs),
+                                    #boundary_conditions = (; c=c_bcs),
                                     closure = diffusion)
 
 #=
@@ -129,7 +131,7 @@ function stable_diffusion!(model, amplitude, diffusivity)
     model.clock.iteration = 0
 
     for n = 1:10
-        time_step!(model, Δt; euler=true)
+        @time time_step!(model, Δt; euler=true)
     end
 
     # Compute scalar metric
@@ -148,11 +150,8 @@ function stable_diffusion!(model, amplitude, diffusivity)
     return sum_c²::Float64
 end
 
-# Compute derivative by hand
-κ₁, κ₂ = 0.9, 1.1
-c²₁ = stable_diffusion!(model, 1, κ₁)
-c²₂ = stable_diffusion!(model, 1, κ₂)
-dc²_dκ_fd = (c²₂ - c²₁) / (κ₂ - κ₁)
+# Compute And gauge runtime:
+stable_diffusion!(model, 1, 1.0)
 
 # Now for real
 amplitude = 1.0
@@ -163,6 +162,7 @@ set_diffusivity!(dmodel, 0)
 #autodiff(Reverse, set_initial_condition!, Duplicated(model, dmodel), Active(amplitude))
 #autodiff(Reverse, set_diffusivity!, Duplicated(model, dmodel), Active(κ))
 
+#=
 dc²_dκ = autodiff(Enzyme.Reverse,
                   stable_diffusion!,
                   Duplicated(model, dmodel),
@@ -173,3 +173,4 @@ dc²_dκ = autodiff(Enzyme.Reverse,
 Enzyme computed $dc²_dκ
 Finite differences computed $dc²_dκ_fd
 """
+=#
