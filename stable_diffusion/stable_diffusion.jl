@@ -1,4 +1,3 @@
-using Oceananigans.BoundaryConditions: PeriodicBoundaryCondition, FluxBoundaryCondition
 using Enzyme
 
 Enzyme.API.runtimeActivity!(true)
@@ -23,7 +22,23 @@ function permute_boundary_conditions(boundary_conditions)
     return nothing
 end
 
-bc = (north=PeriodicBoundaryCondition(), top=FluxBoundaryCondition(tracer_flux, field_dependencies=:c; parameters))
+
+struct ContinuousBoundaryFunction{X, Y, Z, S, F, P, D, N, ℑ}
+    func :: F
+    parameters :: P
+    field_dependencies :: D
+    field_dependencies_indices :: N
+    field_dependencies_interp :: ℑ
+
+    """ Returns a location-less wrapper for `func`, `parameters`, and `field_dependencies`."""
+    function ContinuousBoundaryFunction(func::F, parameters::P, field_dependencies) where {F, P}
+    field_dependencies = tuple(field_dependencies)
+    D = typeof(field_dependencies)
+    return new{Nothing, Nothing, Nothing, Nothing, F, P, D, Nothing, Nothing}(func, parameters, field_dependencies, nothing, nothing)
+    end
+end
+
+bc = (north=1, top=ContinuousBoundaryFunction(tracer_flux, parameters, :c))
 
 d_bc = Enzyme.make_zero(bc)
 
