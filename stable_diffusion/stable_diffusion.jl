@@ -23,18 +23,16 @@ function permute_boundary_conditions(boundary_conditions)
 end
 
 
-struct ContinuousBoundaryFunction{X, Y, Z, S, F, P, D, N, ℑ}
+struct ContinuousBoundaryFunction{X, Y, Z, S, F, P, D}
     func :: F
     parameters :: P
     field_dependencies :: D
-    field_dependencies_indices :: N
-    field_dependencies_interp :: ℑ
 
     """ Returns a location-less wrapper for `func`, `parameters`, and `field_dependencies`."""
     function ContinuousBoundaryFunction(func::F, parameters::P, field_dependencies) where {F, P}
     field_dependencies = tuple(field_dependencies)
     D = typeof(field_dependencies)
-    return new{Nothing, Nothing, Nothing, Nothing, F, P, D, Nothing, Nothing}(func, parameters, field_dependencies, nothing, nothing)
+    return new{Nothing, Nothing, Nothing, Nothing, F, P, D}(func, parameters, field_dependencies)
     end
 end
 
