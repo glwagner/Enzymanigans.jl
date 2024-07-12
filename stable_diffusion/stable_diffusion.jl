@@ -4,8 +4,6 @@ Enzyme.API.runtimeActivity!(true)
 Enzyme.API.looseTypeAnalysis!(true)
 Enzyme.EnzymeRules.inactive_noinl(::typeof(Core._compute_sparams), args...) = nothing
 
-parameters = (a = 1, b = 0.1)
-
 
 @inline extract_bc(bc, ::Val{:north}) = (bc.north)
 @inline extract_bc(bc, ::Val{:top}) = (bc.top)
@@ -18,21 +16,9 @@ function permute_boundary_conditions(boundary_conditions)
     return nothing
 end
 
+parameters = (a = 1, b = 0.1)
 
-struct ContinuousBoundaryFunction{P, D}
-    parameters :: P
-    field_dependencies :: D
-
-    """ Returns a location-less wrapper for `func`, `parameters`, and `field_dependencies`."""
-    function ContinuousBoundaryFunction(parameters::P, field_dependencies) where {P}
-    field_dependencies = tuple(field_dependencies)
-    D = typeof(field_dependencies)
-    return new{P, D}(parameters, field_dependencies)
-    end
-end
-
-bc = (north=1, top=ContinuousBoundaryFunction(parameters, :c))
-
+bc   = (north=1, top=tuple(parameters, tuple(:c)))
 d_bc = Enzyme.make_zero(bc)
 
 @show bc
