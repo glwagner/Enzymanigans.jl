@@ -9,8 +9,7 @@ Enzyme.EnzymeRules.inactive_noinl(::typeof(Core._compute_sparams), args...) = no
 @inline extract_bc(bc, ::Val{:top}) = (bc.top)
 
 function permute_boundary_conditions(boundary_conditions)
-    sides = [:north, :top]
-    sides = sides[[2, 1]]
+    sides = [:top, :north] # changing the order of these actually changes the error
     boundary_conditions = Tuple(extract_bc(boundary_conditions, Val(side)) for side in sides)
 
     return nothing
