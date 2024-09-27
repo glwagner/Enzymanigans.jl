@@ -173,3 +173,27 @@ dc²_dκ = autodiff(Enzyme.Reverse,
 Enzyme computed $dc²_dκ
 Finite differences computed $dc²_dκ_fd
 """
+
+figsize = (1000, 500)
+temp_color_range = (-3, 3)
+figsizeInverse = (figsize[1], 2figsize[2])
+figI = Figure(size=figsizeInverse)
+	
+axT0top = Axis(figI[1, 1], xlabel="x (m)", ylabel="y (m)", title="The true water surface Temperature:")
+axT0side = Axis(figI[2, 1], xlabel="x (m)", ylabel="z (m)", title="The true water depth temperature (cross-section):")
+Colorbar(figI[1, 3], limits = temp_color_range, colormap = :bluesreds,
+label = "Temperature (⚪ C)")
+
+axTitop = Axis(figI[1, 2], xlabel="x (m)", ylabel="y (m)", title="What we reconstructed:")
+axTiside = Axis(figI[2, 2], xlabel="x (m)", ylabel="z (m)", title="What we reconstructed (cross-section):")
+Colorbar(figI[2, 3], limits = temp_color_range, colormap = :bluesreds,
+label = "Temperature (⚪ C)")
+	
+heatmap!(axT0top, xpoints, ypoints, T₀.data[1:Nx,1:Ny,Nz], colormap=:bluesreds, colorrange = temp_color_range)
+heatmap!(axT0side, xpoints, zpoints, T₀.data[1:Nx,Int(Ny/2),1:Nz], colormap=:bluesreds, colorrange = temp_color_range)
+heatmap!(axTitop, xpoints, ypoints, Tᵢ[1:Nx,1:Ny,Nz], colormap=:bluesreds, colorrange = temp_color_range)
+heatmap!(axTiside, xpoints, zpoints, Tᵢ[1:Nx,Int(Ny/2),1:Nz], colormap=:bluesreds, colorrange = temp_color_range)
+
+save("output.png", figI)
+
+figI
