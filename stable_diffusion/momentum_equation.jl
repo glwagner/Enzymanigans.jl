@@ -51,8 +51,8 @@ function momentum_equation!(model)
     return sum_u²::Float64
 end
 
-Nx = Ny = 64
-Nz = 8
+Nx = Ny = 32
+Nz = 4
 
 Lx = Ly = L = 2π
 Lz = 1
@@ -107,11 +107,11 @@ u_old = model.velocities.u[:]
 @show model.velocities.u
 @show dmodel.velocities.u
 
-#momentum_equation!(model)
+momentum_equation!(model)
 
-du²_dκ = autodiff(set_runtime_activity(Enzyme.Reverse),
-                  momentum_equation!,
-                  Duplicated(model, dmodel))
+#du²_dκ = autodiff(set_runtime_activity(Enzyme.Reverse),
+#                  momentum_equation!,
+#                  Duplicated(model, dmodel))
 
 u_new = model.velocities.u[:]
 @show model.velocities.u
