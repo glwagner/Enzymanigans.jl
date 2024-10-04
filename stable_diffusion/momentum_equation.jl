@@ -84,7 +84,7 @@ buoyancy = SeawaterBuoyancy(equation_of_state=LinearEquationOfState())
 
 model = HydrostaticFreeSurfaceModel(; grid,
                                     momentum_advection = WENO(),
-                                    free_surface = ExplicitFreeSurface(),
+                                    free_surface = ExplicitFreeSurface(gravitational_acceleration=1),
                                     #buoyancy = buoyancy,
                                     #tracers = (:T, :S),
                                     #velocities = PrescribedVelocityFields(; u, v),
