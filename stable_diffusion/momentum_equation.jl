@@ -84,6 +84,7 @@ buoyancy = SeawaterBuoyancy(equation_of_state=LinearEquationOfState())
 
 model = HydrostaticFreeSurfaceModel(; grid,
                                     momentum_advection = WENO(),
+                                    free_surface = ExplicitFreeSurface(gravitational_acceleration=1),
                                     #buoyancy = buoyancy,
                                     #tracers = (:T, :S),
                                     #velocities = PrescribedVelocityFields(; u, v),
@@ -109,9 +110,9 @@ u_old = model.velocities.u[:]
 
 momentum_equation!(model)
 
-#du²_dκ = autodiff(set_runtime_activity(Enzyme.Reverse),
-#                  momentum_equation!,
-#                  Duplicated(model, dmodel))
+du²_dκ = autodiff(set_runtime_activity(Enzyme.Reverse),
+                  momentum_equation!,
+                  Duplicated(model, dmodel))
 
 u_new = model.velocities.u[:]
 @show model.velocities.u
