@@ -1,6 +1,7 @@
 using Enzyme
 # Required presently
 #Enzyme.API.runtimeActivity!(true)
+#Enzyme.Compiler.DumpPreEnzyme[] = true
 Enzyme.API.looseTypeAnalysis!(true)
 Enzyme.API.maxtypeoffset!(2032)
 
